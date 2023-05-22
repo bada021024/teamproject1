@@ -87,10 +87,14 @@ order *add_order(order *s, int num); // 5. 주문 추가
 int del_order(order *s[], int num); // 6. 주문 취소
 void print_order(order *s[], int num); // 7. 주문 리스트 나열
 void print_totalsales(int sum); // 8. 총매출 계산
+void savefile(menu* s[],int num); //9. menu 파일에 메뉴목록 저장하기
+int lodefile(menu* s[]); //10. menu 파일에서 메뉴 불러오기.
+int lodeyester(); //11. 전날 매출 불러오기
+void saveyester(int num); //12. 오늘 매출 기록하기
 
 int main() {
   int select; // selectMenu에서 입력받는 변수
-  int num;
+  int num; 
   int menucount = 0; // 메뉴등록번호
   int ordercount = 0; // 주문등록번호
   char name[50]; //
@@ -98,6 +102,14 @@ int main() {
   order *o[100]; // 주문 구조체 포인터 선언 -> 주문은 o
   int update_num; // 뭘 고칠지 입력받을때 쓰는 용도
   int sum = 0 ;// 이게 총매출
+
+  int yesterdaysum;// 전날 매출
+
+  yesterdaysum = lodeyester();
+  menucount=lodefile(b);
+
+  if(yesterdaysum>=0) printf("전날 매출은 %d원 입니다.\n",yesterdaysum);
+  else printf("전날 매출의 기록이 없습니다.\n");
 
   while (1) {
     select = selectMenu();
@@ -120,7 +132,7 @@ int main() {
 
     else if (select == 3) { // 3. 메뉴 검색
       print_menu(b, menucount);
-      printf("검색할 메뉴의 번호를 입력하세요. ex) 목록중 세번째로 나오면 3 입력\n"
+      printf("검색할 메뉴의 번호를 입력하세요. (등록번호 입력)\n"
              "입력 : ");
       scanf("%d", &num);
       search_menu(b[num - 1], menucount);
@@ -142,9 +154,7 @@ int main() {
 
     else if (select == 6) { // 6. 주문 취소
       print_menu(b, menucount);
-
       printf("\n");
-
       sum -= del_order(o, ordercount);
     }
 
@@ -159,12 +169,15 @@ int main() {
       
     else if (select == 9) { // 9. 메뉴 수정
       print_menu(b, menucount);
-      printf("고칠 번호를 입력하시오.");
+      printf("고칠 번호를 입력하시오.(등록번호 입력)\n");
       scanf("%d", &update_num);
       update_menu(b[update_num]);
     }
   }
-  
+
+  savefile(b, menucount); 
+  saveyester(sum);
+  printf("메뉴와 오늘의 매출을 파일에 저장했습니다!");
   return 0;
 }
 
@@ -227,21 +240,11 @@ void print_menu(menu *s[], int num) { // 4. 메뉴판 보기
       continue;
     else {
       printf("|");
-      printf("%d %s  %d  %d |\n", s[i]->no, s[i]->name, s[i]->price,
+      printf("%d     %s   %d  %d |\n", s[i]->no, s[i]->name, s[i]->price,
              s[i]->type);
     }
   }
 }
-
-/*
-typedef struct {
-  int no;        // 메뉴 등록 번호
-  int price; //메뉴 하나의 가격
-  int orno;      // 주문 등록 번호
-  int ordercon; // 수량
-  int total;     // 총금액
-} order;
-*/
 
 order *add_order(order *o, int num) { // 5. 주문 추가
   o=(order*) malloc(sizeof(order));
@@ -277,7 +280,7 @@ void print_order(order *s[], int num) { // 7. 주문 리스트 나열
       continue;
     else {
       printf("|");
-      printf("%d %d %d  %d |\n", s[i]->orno, s[i]->no, s[i]->ordercon,
+      printf("%d     %d    %d  %d |\n", s[i]->orno, s[i]->no, s[i]->ordercon,
              s[i]->total);
     }
   }
@@ -287,14 +290,58 @@ void print_totalsales(int sum) { // 8. 총매출 계산
   printf("오늘 하루 매출은 %d 원입니다.\n", sum);
 }
 
-void savefile(m* s[],int num){//파일에 정보 저장하기
+
+
+
+void savefile(menu* s[],int num){//파일에 정보 저장하기
     FILE *fp = fopen("menu.txt","w");
     for(int i=0;i<num;i++){
       if(s[i]->no==-1) continue;
       else
-        fprintf(fp,"%d %s %c %d\n",s[i]->no,s[i]->name,s[i]->type,s[i]->price);
+        fprintf(fp,"%d %s %d %d\n",i,s[i]->name,s[i]->price,s[i]->type);
     }
     fclose(fp);
-    printf("파일에 정보가 저장됨!\n");
+    printf("파일에 메뉴정보가 저장됨!\n");
     return;
 }
+
+int lodefile(menu* s[]){
+    int count=0;
+    FILE *fp = fopen("menu.txt","r");
+    while(!feof(fp)){
+      s[count]=(menu*) malloc(sizeof(menu));
+        fscanf(fp,"%d",&s[count]->no);
+        fscanf(fp,"%s",s[count]->name);
+        fscanf(fp,"%d",&s[count]->price);
+        fscanf(fp,"%d",&s[count]->type);
+      count++;
+    }
+  if(s[count-1]->price==0) {
+    free(s[count-1]);
+    count=count-1;
+    }
+
+    fclose(fp);
+    if(count==0) printf("=> 파일 없음.\n");
+    else printf("=> 로딩 성공!\n");
+    return count;
+}
+
+void saveyester(int num){
+    FILE *fp = fopen("score.txt","w");
+    fprintf(fp,"%d",num);  
+    fclose(fp);
+    printf("파일에 오늘의 매출이 저장됨!\n");
+    return;
+}
+
+int lodeyester(){
+  int count=0;
+  FILE *fp = fopen("score.txt","r");
+  fscanf(fp, "%d", &count);
+  fclose(fp);
+    return count;
+}
+
+
+
